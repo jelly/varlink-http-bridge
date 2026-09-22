@@ -1903,7 +1903,7 @@ fn cli_looking_up_credentials(
         key: None,
         trust: None,
         require_mtls,
-        authorized_keys: authorized_keys.map(String::from),
+        authorized_keys: authorized_keys.map(std::path::PathBuf::from),
         api_keys: None,
         auth: auth.to_vec(),
         insecure,
@@ -2051,7 +2051,7 @@ fn test_unread_credentials_reports_api_keys_hidden_by_explicit_path() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(dir.path().join("varlink-httpd.api-keys"), "").unwrap();
     let cli = crate::BridgeCli {
-        api_keys: Some("/etc/varlink-httpd/api-keys".to_string()),
+        api_keys: Some("/etc/varlink-httpd/api-keys".into()),
         ..cli_looking_up_credentials(false, true, &[AuthMechanism::ApiKey], None)
     };
     assert_eq!(
@@ -2332,14 +2332,9 @@ mod sshauth_tests {
         std::fs::write(&file_a, pubkey_a.as_bytes()).unwrap();
         std::fs::write(&file_b, pubkey_b.as_bytes()).unwrap();
 
-        let auth = crate::auth_ssh::SshKeyAuthenticator::new(
-            vec![
-                file_a.to_string_lossy().into_owned(),
-                file_b.to_string_lossy().into_owned(),
-            ],
-            None,
-        )
-        .unwrap();
+        let auth =
+            crate::auth_ssh::SshKeyAuthenticator::new(vec![file_a.clone(), file_b.clone()], None)
+                .unwrap();
         assert_eq!(auth.key_count(), 2);
 
         std::fs::remove_file(&file_b).unwrap();
@@ -2884,7 +2879,7 @@ mod sshauth_tests {
         let cli_file = tempfile::NamedTempFile::new().unwrap();
         std::fs::write(cli_file.path(), format!("{}\n", pubkey_b1.trim())).unwrap();
         let auth = create_ssh_authenticator(
-            Some(cli_file.path().to_str().unwrap().to_string()),
+            Some(cli_file.path().to_path_buf()),
             Some(creds_dir.path()),
             cli_root.path(),
         )
@@ -3826,7 +3821,7 @@ mod apikey_tests {
         let dir = tempfile::tempdir().unwrap();
         let keys_path = dir.path().join("api-keys");
         let auth = create_api_key_authenticator(
-            Some(keys_path.to_string_lossy().into_owned()),
+            Some(keys_path.clone()),
             None,
             std::path::Path::new("/nonexistent"),
         )
@@ -3975,10 +3970,7 @@ mod apikey_tests {
         let auth = ApiKeyAuthenticator::new(
             // the broken one first: a bail-on-first-error loop never reaches
             // the good one
-            vec![
-                broken.to_string_lossy().into_owned(),
-                good.to_string_lossy().into_owned(),
-            ],
+            vec![broken.clone(), good.clone()],
             None,
         )
         .unwrap();
